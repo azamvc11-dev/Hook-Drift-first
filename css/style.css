@@ -1,0 +1,262 @@
+:root{
+  --sky-top:#0a0a0c;
+  --sky-mid:#2a2a2e;
+  --sky-bot:#4a4a4e;
+  --sun:#ffffff;
+  --cyan:#e5e5ea;
+  --pink:#8e8e93;
+  --mint:#ffffff;
+  --ink:#0a0a0b;
+  --paper:#f4f4f6;
+  --font-display:'Space Grotesk', sans-serif;
+  --font-mono:'JetBrains Mono', monospace;
+  /* Fallback before JS runs once (see js/settings.js applyResponsive()).
+     --evw/--evh represent the EFFECTIVE viewport (1% of width/height),
+     accounting for the forced-orientation rotation — real vw/vh units
+     can't do this because the browser always computes them from the
+     real, unrotated screen, never from what's visually shown after a
+     CSS transform. Everything below uses --evw/--evh instead of vw/vh. */
+  --evw:1vw;
+  --evh:1vh;
+}
+*{ box-sizing:border-box; -webkit-tap-highlight-color: transparent; user-select:none; }
+.hidden{ display:none !important; }
+html,body{
+  margin:0; padding:0; width:100%; height:100%; overflow:hidden;
+  background:var(--ink); font-family:var(--font-display); touch-action:none;
+}
+#wrap{ position:relative; width:100vw; height:100vh; height:100dvh; overflow:hidden; }
+canvas{ display:block; width:100%; height:100%; touch-action:none; }
+
+/* Форсированный разворот на 90°, когда выбранная в настройках ориентация не
+   совпадает с реальным положением устройства. Использует настоящие vw/vh —
+   это сознательно, они здесь просто позиционируют контейнер под реальный
+   экран, а не сайзят контент внутри (для контента ниже используются
+   --evw/--evh, которые JS пересчитывает под уже повёрнутую форму). */
+#wrap.force-rotate-cw{
+  position:fixed; top:0; left:0;
+  width:100vh; height:100vw;
+  transform-origin: top left;
+  transform: rotate(90deg) translateY(-100%);
+}
+#wrap.force-rotate-ccw{
+  position:fixed; top:0; left:0;
+  width:100vh; height:100vw;
+  transform-origin: top left;
+  transform: rotate(-90deg) translateX(-100%);
+}
+
+.hud{
+  position:absolute; top:0; left:0; right:0;
+  display:flex; justify-content:space-between; align-items:flex-start;
+  padding: max(10px, env(safe-area-inset-top)) calc(var(--evw)*3) 0 calc(var(--evw)*3);
+  pointer-events:none; color:var(--paper);
+}
+.score-block{ display:flex; flex-direction:column; gap:2px; }
+.score-label{ font-size:clamp(9px,calc(var(--evw)*2.4),11px); letter-spacing:.18em; opacity:.55; text-transform:uppercase; white-space:nowrap; }
+.score-value{ font-family:var(--font-mono); font-size:clamp(19px,calc(var(--evw)*6),30px); font-weight:700; line-height:1; text-shadow:0 2px 12px rgba(0,0,0,.35);}
+.hud-right{ display:flex; align-items:center; gap:clamp(5px,calc(var(--evw)*1.8),10px); }
+.best-block{ text-align:right; }
+.best-block .score-value{ font-size:clamp(13px,calc(var(--evw)*4),18px); color:var(--cyan); }
+.icon-btn{
+  pointer-events:auto; flex-shrink:0;
+  width:clamp(26px,calc(var(--evw)*8),34px); height:clamp(26px,calc(var(--evw)*8),34px); border-radius:50%; border:none;
+  background:rgba(255,255,255,0.1); color:var(--paper); font-size:clamp(11px,calc(var(--evw)*3.2),15px); cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+}
+.icon-btn.off{ opacity:.35; }
+
+.overlay{
+  position:absolute; inset:0; display:flex; align-items:center; justify-content:flex-start;
+  flex-direction:column; text-align:center; color:var(--paper);
+  background:radial-gradient(circle at 50% 30%, rgba(51,26,92,.55), rgba(6,6,16,.86));
+  backdrop-filter: blur(2px);
+  padding: max(18px, env(safe-area-inset-top)) 20px max(18px, env(safe-area-inset-bottom)) 20px;
+  overflow-y:auto;
+}
+.overlay::before, .overlay::after{ content:''; flex:1 0 0; min-height:4px; }
+.overlay.hidden{ display:none; }
+.badge{
+  font-family:var(--font-mono); font-size:12px; letter-spacing:.3em; text-transform:uppercase;
+  color:var(--pink); margin-bottom:8px; opacity:.9; flex-shrink:0;
+}
+h1.title{
+  font-size:clamp(30px,calc(var(--evw)*9),64px); margin:0 0 6px 0; font-weight:700; letter-spacing:-.02em;
+  background:linear-gradient(180deg,#fff, var(--cyan));
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+  flex-shrink:0;
+}
+.sub{ font-size:clamp(12px,calc(var(--evw)*3.4),15px); opacity:.75; max-width:340px; margin:0 auto 14px; line-height:1.45; flex-shrink:0; }
+
+.skin-row{ display:flex; gap:clamp(5px,calc(var(--evw)*2),10px); flex-wrap:wrap; justify-content:center; max-width:360px; margin-bottom:14px; flex-shrink:0; }
+.skin-swatch{
+  width:clamp(34px,calc(var(--evw)*10),52px); height:clamp(34px,calc(var(--evw)*10),52px); border-radius:14px; display:flex; align-items:center; justify-content:center;
+  position:relative; cursor:pointer; border:2px solid rgba(255,255,255,0.12);
+  transition:transform .12s ease, border-color .12s ease;
+}
+.skin-swatch.selected{ border-color:var(--cyan); transform:scale(1.06); }
+.skin-swatch.locked{ opacity:.35; cursor:default; }
+.skin-swatch .dot{ width:clamp(14px,calc(var(--evw)*4),22px); height:clamp(14px,calc(var(--evw)*4),22px); border-radius:50%; }
+.skin-swatch .lock-label{
+  position:absolute; bottom:-15px; font-size:8px; font-family:var(--font-mono); opacity:.7; white-space:nowrap;
+}
+
+.spider-row{ margin-bottom:12px; flex-shrink:0; }
+.spider-row.hidden{ display:none; }
+.spider-toggle{
+  font-family:var(--font-mono); font-size:12px; letter-spacing:.05em;
+  background:rgba(255,255,255,0.08); color:var(--paper);
+  border:1.5px solid rgba(255,255,255,0.25); border-radius:999px;
+  padding:8px 16px; cursor:pointer;
+}
+.spider-toggle.on{
+  background:linear-gradient(135deg, var(--pink), var(--cyan));
+  color:#0a0a0b; border-color:transparent; font-weight:700;
+}
+
+.name-row{ display:flex; gap:8px; margin-bottom:6px; align-items:center; justify-content:center; flex-wrap:wrap; flex-shrink:0; }
+#settingsBtnMenu{ padding:8px 13px; }
+.name-input{
+  font-family:var(--font-display); font-size:13px; padding:8px 12px;
+  border-radius:999px; border:1.5px solid rgba(255,255,255,0.25);
+  background:rgba(255,255,255,0.06); color:var(--paper); width:130px; text-align:center;
+}
+.name-input::placeholder{ color:rgba(244,242,255,0.4); }
+.ghost-btn{
+  font-family:var(--font-mono); font-size:12px; background:transparent;
+  border:1.5px solid rgba(255,255,255,0.25); color:var(--paper);
+  border-radius:999px; padding:8px 13px; cursor:pointer; white-space:nowrap;
+}
+.name-status{
+  font-family:var(--font-mono); font-size:11px; min-height:14px; margin-bottom:10px; opacity:.85; flex-shrink:0;
+}
+.name-status.ok{ color:var(--mint); }
+.name-status.bad{ color:var(--pink); }
+
+/* ---------- Account panel (start screen) ---------- */
+.account-panel{ margin-bottom:12px; flex-shrink:0; }
+.account-card{
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15);
+  border-radius:14px; padding:8px 14px; max-width:340px;
+}
+.account-card .who{ text-align:left; }
+.account-card .who .u{ font-weight:700; font-size:13px; }
+.account-card .who .p{ font-family:var(--font-mono); font-size:10px; opacity:.65; margin-top:2px; }
+.account-card button{
+  font-family:var(--font-mono); font-size:11px; background:transparent;
+  border:1px solid rgba(255,255,255,0.3); color:var(--paper); border-radius:999px;
+  padding:6px 12px; cursor:pointer;
+}
+
+/* ---------- Auth form ---------- */
+.auth-form{ display:flex; flex-direction:column; gap:10px; align-items:center; width:100%; max-width:280px; }
+.name-input.wide{ width:100%; }
+.auth-error{ font-family:var(--font-mono); font-size:12px; color:var(--pink); min-height:16px; text-align:center; }
+
+/* ---------- Leaderboard tabs & detail ---------- */
+.lb-tabs{ display:flex; gap:8px; margin-bottom:12px; flex-shrink:0; }
+.lb-tab{
+  font-family:var(--font-mono); font-size:12px; background:transparent;
+  border:1.5px solid rgba(255,255,255,0.25); color:var(--paper);
+  border-radius:999px; padding:8px 16px; cursor:pointer;
+}
+.lb-tab.active{
+  background:linear-gradient(135deg, var(--pink), var(--cyan));
+  color:#0a0a0b; border-color:transparent; font-weight:700;
+}
+.leaderboard-list.tall{ max-height:calc(var(--evh)*45); }
+.my-rank{
+  font-family:var(--font-mono); font-size:13px; color:var(--mint);
+  background:rgba(185,251,192,0.1); border:1px solid rgba(185,251,192,0.3);
+  border-radius:12px; padding:8px 14px; margin-bottom:12px; display:none; flex-shrink:0;
+}
+.my-rank.show{ display:block; }
+.lb-row.me{ outline:2px solid var(--cyan); }
+
+/* ---------- Settings screen ---------- */
+.settings-group{ margin-bottom:16px; width:100%; max-width:340px; flex-shrink:0; }
+.settings-group .label{
+  font-family:var(--font-mono); font-size:11px; letter-spacing:.15em; text-transform:uppercase;
+  opacity:.6; margin-bottom:8px; text-align:center;
+}
+.settings-options{ display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
+.settings-opt{
+  font-family:var(--font-mono); font-size:12px; background:transparent;
+  border:1.5px solid rgba(255,255,255,0.25); color:var(--paper);
+  border-radius:999px; padding:8px 15px; cursor:pointer;
+}
+.settings-opt.active{
+  background:linear-gradient(135deg, var(--pink), var(--cyan));
+  color:#0a0a0b; border-color:transparent; font-weight:700;
+}
+
+.leaderboard-list{ width:100%; max-width:340px; margin-bottom:18px; display:flex; flex-direction:column; gap:6px; max-height:calc(var(--evh)*40); overflow-y:auto; flex-shrink:1; }
+.lb-row{
+  display:flex; align-items:center; gap:10px; padding:9px 14px;
+  background:rgba(255,255,255,0.06); border-radius:12px; font-family:var(--font-mono); font-size:13px;
+}
+.lb-rank{ color:var(--cyan); width:32px; flex-shrink:0; }
+.lb-name{ flex:1; text-align:left; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.lb-score{ color:var(--mint); font-weight:700; }
+.lb-empty{ font-family:var(--font-mono); font-size:13px; opacity:.6; padding:20px; }
+
+.stat-row{ display:flex; gap:28px; margin-bottom:16px; flex-shrink:0; }
+.stat{ display:flex; flex-direction:column; align-items:center; }
+.stat .n{ font-family:var(--font-mono); font-size:clamp(18px,calc(var(--evw)*5.5),26px); color:var(--mint); }
+.stat .l{ font-size:10px; letter-spacing:.2em; text-transform:uppercase; opacity:.6; margin-top:2px;}
+button.play{
+  font-family:var(--font-display); font-weight:700; font-size:clamp(14px,calc(var(--evw)*4),17px);
+  background:linear-gradient(135deg, var(--pink), var(--cyan));
+  color:#0a0a0b; border:none; padding:clamp(11px,calc(var(--evh)*2),16px) clamp(26px,calc(var(--evw)*9),40px); border-radius:999px;
+  box-shadow:0 8px 30px rgba(255,93,143,.35); cursor:pointer;
+  letter-spacing:.02em; transform:translateZ(0); transition:transform .15s ease;
+  flex-shrink:0;
+}
+button.play:active{ transform:scale(.96); }
+.btn-row{ display:flex; gap:12px; flex-wrap:wrap; justify-content:center; flex-shrink:0; }
+button.play.secondary{
+  background:transparent; color:var(--paper);
+  border:2px solid rgba(255,255,255,0.3); box-shadow:none;
+}
+.hint{ margin-top:14px; font-size:11px; opacity:.5; letter-spacing:.05em; flex-shrink:0; }
+
+.unlock-notice{
+  font-family:var(--font-mono); font-size:12px; color:var(--mint);
+  background:rgba(185,251,192,0.1); border:1px solid rgba(185,251,192,0.3);
+  padding:8px 14px; border-radius:10px; margin-bottom:14px; max-width:320px; flex-shrink:0;
+}
+.unlock-notice.hidden{ display:none; }
+
+#offlineNote{
+  position:absolute; bottom:10px; left:0; right:0; text-align:center;
+  font-family:var(--font-mono); font-size:10px; color:var(--paper); opacity:.4; pointer-events:none;
+}
+
+/* ---------- Адаптив ----------
+   Раньше здесь были @media (max-width/max-height) — но браузер всегда
+   считает медиа-запросы от РЕАЛЬНОГО экрана, даже если мы визуально
+   развернули #wrap через CSS-трансформацию. Из-за этого при включённом
+   принудительном развороте (настройки → ориентация) эти правила либо не
+   срабатывали, когда должны, либо срабатывали, когда не должны. Теперь
+   пороги считает JS (settings.js → applyResponsive) от ЭФФЕКТИВНЫХ
+   (с учётом разворота) размеров экрана и включает классы на <html>. */
+
+html.narrow-screen .sub{ max-width:280px; }
+html.narrow-screen .name-input{ width:150px; }
+
+html.short-screen .overlay{ padding-top:12px; padding-bottom:12px; }
+html.short-screen .badge{ margin-bottom:4px; font-size:10px; }
+html.short-screen .sub{ margin-bottom:8px; }
+html.short-screen .skin-row{ margin-bottom:8px; }
+html.short-screen .spider-row{ margin-bottom:8px; }
+html.short-screen .name-row{ margin-bottom:6px; }
+html.short-screen .stat-row{ margin-bottom:8px; }
+html.short-screen .hint{ margin-top:6px; }
+html.short-screen .account-panel{ margin-bottom:8px; }
+
+html.very-narrow-screen .skin-row{ gap:4px; }
+
+html.wide-screen .overlay{ padding:40px; }
+html.wide-screen .sub{ max-width:420px; }
+html.wide-screen .leaderboard-list{ max-width:420px; }

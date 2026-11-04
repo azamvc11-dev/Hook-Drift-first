@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Hook Drift</title>
+
+<!-- PWA / iPhone "Add to Home Screen" support -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0a0a0c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Hook Drift">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="icon" href="icons/icon-192.png">
+
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+<script src="https://telegram.org/js/telegram-web-app.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="game"></canvas>
+
+  <div class="hud">
+    <div class="score-block">
+      <div class="score-label" data-i18n="hud_distance" style="opacity:.55">Дистанция</div>
+      <div class="score-value" id="scoreVal">0м</div>
+    </div>
+    <div class="hud-right">
+      <button class="icon-btn" id="settingsBtn" title="Settings">⚙️</button>
+      <button class="icon-btn" id="musicBtn" title="Музыка">🎵</button>
+      <button class="icon-btn" id="sfxBtn" title="Звуки">🔊</button>
+      <div class="best-block">
+        <div class="score-label" data-i18n="stat_best">рекорд</div>
+        <div class="score-value" id="bestVal">0м</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- START SCREEN -->
+  <div class="overlay" id="startScreen" data-anim="animate__fadeIn">
+    <div class="badge" data-i18n="badge_main">Hook &amp; Swing</div>
+    <h1 class="title animate__animated animate__fadeInDown" style="animation-duration:.6s">HOOK DRIFT</h1>
+    <p class="sub animate__animated animate__fadeIn" style="animation-delay:.15s;animation-duration:.6s" data-i18n="sub_main">Тапай, чтобы зацепиться крюком за точку впереди. Держи — подтягивай трос. Блоки на пути рикошетят тебя в сторону, батуты снизу — подбрасывают вверх.</p>
+
+    <div class="account-panel" id="accountPanel"></div>
+
+    <div class="skin-row" id="skinRow"></div>
+    <div class="spider-row hidden" id="spiderToggleRow"></div>
+
+    <div class="name-row">
+      <button class="ghost-btn" id="leaderboardBtn" data-i18n="leaderboard_btn">🏆 Таблицы лидеров</button>
+      <button class="ghost-btn" id="settingsBtnMenu">⚙️</button>
+    </div>
+
+    <div class="stat-row">
+      <div class="stat"><div class="n" id="bestValStart">0м</div><div class="l" data-i18n="stat_best">рекорд</div></div>
+    </div>
+    <button class="play animate__animated animate__fadeInUp" style="animation-delay:.1s;animation-duration:.5s" id="startBtn" data-i18n="start_btn">Начать</button>
+    <div class="hint" data-i18n="hint_main">Тап / клик — крюк · Удержание — подтягивание троса</div>
+  </div>
+
+  <!-- SETTINGS SCREEN -->
+  <div class="overlay hidden" id="settingsScreen" data-anim="animate__fadeInRight">
+    <div class="badge" data-i18n="settings_title">НАСТРОЙКИ</div>
+    <h1 class="title" style="font-size:clamp(28px,7vw,40px)">⚙️</h1>
+
+    <div class="settings-group">
+      <div class="label" data-i18n="settings_language">Язык</div>
+      <div class="settings-options">
+        <button class="settings-opt" data-lang="ru">Русский</button>
+        <button class="settings-opt" data-lang="en">English</button>
+      </div>
+    </div>
+
+    <div class="settings-group">
+      <div class="label" data-i18n="settings_orientation">Ориентация экрана</div>
+      <div class="settings-options">
+        <button class="settings-opt" data-orientation="auto" data-i18n="orientation_auto">Авто</button>
+        <button class="settings-opt" data-orientation="portrait" data-i18n="orientation_portrait">Вертикально</button>
+        <button class="settings-opt" data-orientation="landscape" data-i18n="orientation_landscape">Горизонтально</button>
+      </div>
+    </div>
+
+    <div class="settings-group">
+      <div class="label" data-i18n="settings_music">Музыка</div>
+      <div class="settings-options" id="genreOptions">
+        <button class="settings-opt" data-genre="calm" data-i18n="genre_calm">Спокойная</button>
+        <button class="settings-opt" data-genre="phonk" data-i18n="genre_phonk">Фонк</button>
+        <button class="settings-opt" data-genre="synth" data-i18n="genre_synth">Электро</button>
+        <button class="settings-opt" data-genre="chip" data-i18n="genre_chip">Чиптюн</button>
+        <button class="settings-opt" data-genre="space" data-i18n="genre_space">Эмбиент</button>
+      </div>
+      <div class="settings-options" style="margin-top:8px;">
+        <button class="settings-opt" id="autoChangeToggle" data-i18n="settings_auto_change">Автосмена жанра</button>
+      </div>
+    </div>
+
+    <button class="play secondary" id="closeSettingsBtn" data-i18n="settings_close">Закрыть</button>
+  </div>
+
+  <!-- AUTH SCREEN -->
+  <div class="overlay hidden" id="authScreen" data-anim="animate__zoomIn">
+    <div class="badge" data-i18n="auth_badge">Аккаунт</div>
+    <h1 class="title" style="font-size:clamp(28px,7vw,40px)" id="authTitle" data-i18n="auth_title_login">ВХОД</h1>
+    <p class="sub" data-i18n="auth_sub">Ник и пароль — без почты и подтверждений. Аккаунт сохраняет твой рекорд, ники в таблице лидеров и наигранное время.</p>
+    <div class="auth-form">
+      <input type="text" id="authUsername" maxlength="16" class="name-input wide" autocomplete="username" data-i18n-ph="auth_username_ph" placeholder="Ник">
+      <input type="password" id="authPassword" class="name-input wide" autocomplete="current-password" data-i18n-ph="auth_password_ph" placeholder="Пароль">
+      <div class="auth-error" id="authError"></div>
+      <button class="play" id="authSubmitBtn" data-i18n="auth_submit_login">Войти</button>
+      <button class="ghost-btn" id="authSwitchBtn" data-i18n="auth_switch_to_register">Ещё нет аккаунта? Зарегистрироваться</button>
+      <button class="ghost-btn" id="authCancelBtn" data-i18n="auth_cancel">Назад</button>
+    </div>
+  </div>
+
+  <!-- LEADERBOARD SCREEN -->
+  <div class="overlay hidden" id="leaderboardScreen" data-anim="animate__fadeInUp">
+    <div class="badge" data-i18n="lb_badge">Топ игроков</div>
+    <h1 class="title" style="font-size:clamp(28px,7vw,40px)" data-i18n="lb_title">ЛИДЕРЫ</h1>
+    <div class="lb-tabs">
+      <button class="lb-tab active" id="lbTabDistance" data-i18n="lb_tab_distance">Дистанция</button>
+      <button class="lb-tab" id="lbTabPlaytime" data-i18n="lb_tab_playtime">Время игры</button>
+    </div>
+    <div id="leaderboardList" class="leaderboard-list"></div>
+    <button class="ghost-btn" id="lbDetailBtn" data-i18n="lb_detail_btn">Подробнее</button>
+    <button class="play secondary" id="closeLeaderboardBtn" data-i18n="lb_close">Закрыть</button>
+  </div>
+
+  <!-- LEADERBOARD DETAIL SCREEN -->
+  <div class="overlay hidden" id="leaderboardDetailScreen" data-anim="animate__fadeInRight">
+    <div class="badge" id="lbDetailBadge">Подробно</div>
+    <h1 class="title" style="font-size:clamp(24px,6vw,34px)" id="lbDetailTitle">ТАБЛИЦА</h1>
+    <p class="sub" id="lbDetailDesc"></p>
+    <div class="my-rank" id="myRankBox"></div>
+    <div id="leaderboardDetailList" class="leaderboard-list tall"></div>
+    <button class="play secondary" id="closeLeaderboardDetailBtn" data-i18n="lb_close">Закрыть</button>
+  </div>
+
+  <!-- GAME OVER SCREEN -->
+  <div class="overlay hidden" id="overScreen" data-anim="animate__fadeIn">
+    <div class="badge" data-i18n="over_badge">Обрыв троса</div>
+    <h1 class="title animate__animated animate__shakeX" style="font-size:clamp(30px,8vw,46px);animation-delay:.1s" data-i18n="over_title">ПАДЕНИЕ</h1>
+    <div class="stat-row">
+      <div class="stat"><div class="n" id="finalScore">0м</div><div class="l" data-i18n="stat_result">результат</div></div>
+      <div class="stat"><div class="n" id="finalBest">0м</div><div class="l" data-i18n="stat_best">рекорд</div></div>
+    </div>
+    <div id="unlockNotice" class="unlock-notice hidden"></div>
+    <button class="play secondary hidden" id="reviveBtn" data-i18n="revive_btn">📺 Продолжить (реклама)</button>
+    <div class="btn-row">
+      <button class="play" id="retryBtn" data-i18n="retry_btn">Ещё раз</button>
+      <button class="play secondary" id="menuBtn" data-i18n="menu_btn">В меню</button>
+    </div>
+  </div>
+
+  <div id="offlineNote"></div>
+</div>
+
+<script src="js/i18n.js"></script>
+<script src="js/settings.js"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/skins.js"></script>
+<script src="js/abilities.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/blocks.js"></script>
+<script src="js/leaderboard.js"></script>
+<script src="js/playtime.js"></script>
+<script src="js/yandex.js"></script>
+<script src="js/game.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
